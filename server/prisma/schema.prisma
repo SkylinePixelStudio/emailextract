@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CrawlJob {
+  id             String   @id @default(uuid())
+  status         String   @default("pending")
+  startUrl       String
+  urls           String
+  depth          Int      @default(2)
+  maxPages       Int      @default(50)
+  respectRobots  Boolean  @default(true)
+  progress       Int      @default(0)
+  urlsFound      Int      @default(0)
+  contactsFound  Int      @default(0)
+  currentUrl     String?
+  error          String?
+  stopped        Boolean  @default(false)
+  paused         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  contacts       Contact[]
+  auditLogs      AuditLog[]
+}
+
+model Contact {
+  id          String     @id @default(uuid())
+  companyName String?
+  website     String
+  email       String?
+  phone       String?
+  sourceUrl   String
+  pageTitle   String?
+  tags        String?
+  notes       String?
+  verified    Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  crawlJobId  String?
+  crawlJob    CrawlJob?  @relation(fields: [crawlJobId], references: [id])
+  campaigns   CampaignContact[]
+  emailLogs   EmailLog[]
+}
+
+model Campaign {
+  id                String            @id @default(uuid())
+  name              String
+  subject           String
+  body              String
+  fromName          String
+  status            String            @default("draft")
+  scheduleAt        DateTime?
+  batchSize         Int               @default(50)
+  batchDelayMinutes Int               @default(60)
+  sentCount         Int               @default(0)
+  failedCount       Int               @default(0)
+  totalCount        Int               @default(0)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  contacts          CampaignContact[]
+  emailLogs         EmailLog[]
+}
+
+model CampaignContact {
+  id          String    @id @default(uuid())
+  campaignId  String
+  contactId   String
+  status      String    @default("pending")
+  sentAt      DateTime?
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, contactId])
+}
+
+model EmailLog {
+  id          String    @id @default(uuid())
+  campaignId  String
+  contactId   String
+  status      String
+  error       String?
+  sentAt      DateTime  @default(now())
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+}
+
+model Unsubscribe {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  reason    String?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  entity    String
+  entityId  String?
+  details   String?
+  userId    String?
+  ip        String?
+  createdAt DateTime @default(now())
+  crawlJob  CrawlJob? @relation(fields: [crawlJobId], references: [id])
+  crawlJobId String?
+}
